@@ -170,21 +170,24 @@ public class OrganizationMgtDaoImpl implements OrganizationMgtDao {
         Timestamp currentTime = new java.sql.Timestamp(new Date().getTime());
         JdbcTemplate jdbcTemplate = getNewTemplate();
         try {
-            jdbcTemplate.executeInsert(INSERT_ORGANIZATION, preparedStatement -> {
-                int parameterIndex = 1;
-                preparedStatement.setString(parameterIndex, organization.getId());
-                preparedStatement.setInt(++parameterIndex, organization.getTenantId());
-                preparedStatement.setString(++parameterIndex, organization.getName());
-                preparedStatement.setString(++parameterIndex, organization.getDisplayName());
-                preparedStatement.setString(++parameterIndex, organization.getDescription());
-                preparedStatement.setTimestamp(++parameterIndex, currentTime, calendar);
-                preparedStatement.setTimestamp(++parameterIndex, currentTime, calendar);
-                preparedStatement.setString(++parameterIndex, organization.getMetadata().getCreatedBy().getId());
-                preparedStatement.setString(++parameterIndex, organization.getMetadata().getLastModifiedBy().getId());
-                preparedStatement.setInt(++parameterIndex, organization.hasAttributes() ? 1 : 0);
-                preparedStatement.setString(++parameterIndex, organization.getStatus().toString());
-                preparedStatement.setString(++parameterIndex, organization.getParent().getId());
-            }, organization, false);
+            jdbcTemplate.withTransaction(template -> {
+                template.executeInsert(INSERT_ORGANIZATION, preparedStatement -> {
+                    int parameterIndex = 1;
+                    preparedStatement.setString(parameterIndex, organization.getId());
+                    preparedStatement.setInt(++parameterIndex, organization.getTenantId());
+                    preparedStatement.setString(++parameterIndex, organization.getName());
+                    preparedStatement.setString(++parameterIndex, organization.getDisplayName());
+                    preparedStatement.setString(++parameterIndex, organization.getDescription());
+                    preparedStatement.setTimestamp(++parameterIndex, currentTime, calendar);
+                    preparedStatement.setTimestamp(++parameterIndex, currentTime, calendar);
+                    preparedStatement.setString(++parameterIndex, organization.getMetadata().getCreatedBy().getId());
+                    preparedStatement.setString(++parameterIndex, organization.getMetadata().getLastModifiedBy().getId());
+                    preparedStatement.setInt(++parameterIndex, organization.hasAttributes() ? 1 : 0);
+                    preparedStatement.setString(++parameterIndex, organization.getStatus().toString());
+                    preparedStatement.setString(++parameterIndex, organization.getParent().getId());
+                }, organization, false);
+                return null;
+            });
             if (organization.hasAttributes()) {
                 insertOrganizationAttributes(jdbcTemplate, organization);
             }
@@ -194,6 +197,9 @@ public class OrganizationMgtDaoImpl implements OrganizationMgtDao {
         } catch (DataAccessException e) {
             throw handleServerException(ERROR_CODE_ORGANIZATION_ADD_ERROR,
                     "Organization name " + organization.getName() + ", Tenant Id " + organization.getTenantId(), e);
+        } catch (TransactionException e) {
+            throw  handleServerException(ERROR_CODE_ORGANIZATION_ADD_ERROR,
+                    "Transaction failed on Organization " + organization.getName(), e);
         }
     }
 
